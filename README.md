@@ -30,7 +30,7 @@ import { windowsRecord } from "@guidepup/record";
 })();
 ```
 
-### MacOS
+### MacOS
 
 Start a screen recording on MacOS.
 
