@@ -2,7 +2,7 @@ import { mkdirSync, unlinkSync } from "fs";
 import { dirname } from "path";
 import { spawn } from "child_process";
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const ffmpegPath = require("ffmpeg-static");
 
 /**
