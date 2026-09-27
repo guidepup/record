@@ -92,6 +92,30 @@ describe("record", () => {
     expect(onStopped).toHaveBeenCalled();
   });
 
+  it("should reuse the stop promise when called more than once", async () => {
+    const firstStop = stopRecording();
+    const secondStop = stopRecording();
+
+    expect(secondStop).toBe(firstStop);
+    expect(mockProcess.stdin.end).toHaveBeenCalledTimes(1);
+
+    mockProcess.emit("close", 0, null);
+
+    await expect(firstStop).resolves.toBeUndefined();
+  });
+
+  it("should not write to stdin after ffmpeg has exited", async () => {
+    mockProcess.exitCode = 0;
+
+    const stopPromise = stopRecording();
+
+    expect(mockProcess.stdin.end).not.toHaveBeenCalled();
+
+    mockProcess.emit("close", 0, null);
+
+    await expect(stopPromise).resolves.toBeUndefined();
+  });
+
   it("should include stderr when ffmpeg fails", async () => {
     const stopPromise = stopRecording();
 
@@ -99,6 +123,16 @@ describe("record", () => {
     mockProcess.emit("close", 1, null);
 
     await expect(stopPromise).rejects.toThrow("ffmpeg: capture failed");
+  });
+
+  it("should report the signal when ffmpeg exits without stderr", async () => {
+    const stopPromise = stopRecording();
+
+    mockProcess.emit("close", null, "SIGTERM");
+
+    await expect(stopPromise).rejects.toThrow(
+      "ffmpeg recording failed (signal SIGTERM)",
+    );
   });
 
   it("should reject if ffmpeg fails to spawn", async () => {

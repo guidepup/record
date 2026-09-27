@@ -76,6 +76,30 @@ describe("record", () => {
     expect(onStopped).toHaveBeenCalled();
   });
 
+  it("should reuse the stop promise when called more than once", async () => {
+    const firstStop = stopRecording();
+    const secondStop = stopRecording();
+
+    expect(secondStop).toBe(firstStop);
+    expect(mockProcess.kill).toHaveBeenCalledTimes(1);
+
+    mockProcess.emit("close", 0, null);
+
+    await expect(firstStop).resolves.toBeUndefined();
+  });
+
+  it("should not signal a process that has already exited", async () => {
+    mockProcess.exitCode = 0;
+
+    const stopPromise = stopRecording();
+
+    expect(mockProcess.kill).not.toHaveBeenCalled();
+
+    mockProcess.emit("close", 0, null);
+
+    await expect(stopPromise).resolves.toBeUndefined();
+  });
+
   it("should include stderr when screencapture fails to save the file", async () => {
     const stopPromise = stopRecording();
 
@@ -87,6 +111,16 @@ describe("record", () => {
 
     await expect(stopPromise).rejects.toThrow(
       "screencapture: Failed to save to final location",
+    );
+  });
+
+  it("should report an unexpected signal when stderr is empty", async () => {
+    const stopPromise = stopRecording();
+
+    mockProcess.emit("close", null, "SIGTERM");
+
+    await expect(stopPromise).rejects.toThrow(
+      "screencapture failed (signal SIGTERM)",
     );
   });
 
