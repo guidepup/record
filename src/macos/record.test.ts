@@ -1,5 +1,6 @@
 import { ChildProcess, spawn } from "child_process";
 import { mkdirSync, unlinkSync } from "fs";
+import { EventEmitter } from "events";
 import { join } from "path";
 import { record } from "./record";
 
@@ -14,11 +15,20 @@ jest.mock("fs", () => ({
 const mockDirectory = "test-directory";
 const mockFilepath = join(mockDirectory, "test-filepath.ext");
 
-const mockProcess = {
-  stdin: {
-    write: jest.fn(),
-  },
+const createMockProcess = () => {
+  const stderr = Object.assign(new EventEmitter(), {
+    setEncoding: jest.fn(),
+  });
+
+  return Object.assign(new EventEmitter(), {
+    stderr,
+    exitCode: null as number | null,
+    signalCode: null as NodeJS.Signals | null,
+    kill: jest.fn(() => true),
+  });
 };
+
+let mockProcess: ReturnType<typeof createMockProcess>;
 
 describe("record", () => {
   let stopRecording;
@@ -26,6 +36,7 @@ describe("record", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    mockProcess = createMockProcess();
     jest.mocked(spawn).mockReturnValue(mockProcess as unknown as ChildProcess);
 
     stopRecording = record(mockFilepath);
@@ -40,19 +51,51 @@ describe("record", () => {
   });
 
   it("should spawn a screencapture child process for recording", () => {
-    expect(spawn).toHaveBeenCalledWith("/usr/sbin/screencapture", [
-      "-v",
-      "-C",
-      "-k",
-      "-T0",
-      "-g",
-      mockFilepath,
-    ]);
+    expect(spawn).toHaveBeenCalledWith(
+      "/usr/sbin/screencapture",
+      ["-v", "-C", "-k", "-T0", "-g", mockFilepath],
+      {
+        stdio: ["ignore", "ignore", "pipe"],
+      },
+    );
   });
 
-  it("should return a function to stop the screencapture process", () => {
-    stopRecording();
+  it("should send SIGINT and wait for the process to close", async () => {
+    const stopPromise = stopRecording();
+    const onStopped = jest.fn();
 
-    expect(mockProcess.stdin.write).toHaveBeenCalledWith("q");
+    stopPromise.then(onStopped);
+
+    expect(mockProcess.kill).toHaveBeenCalledWith("SIGINT");
+    await Promise.resolve();
+    expect(onStopped).not.toHaveBeenCalled();
+
+    mockProcess.emit("close", 0, null);
+
+    await expect(stopPromise).resolves.toBeUndefined();
+    expect(onStopped).toHaveBeenCalled();
+  });
+
+  it("should include stderr when screencapture fails to save the file", async () => {
+    const stopPromise = stopRecording();
+
+    mockProcess.stderr.emit(
+      "data",
+      "screencapture: Failed to save to final location",
+    );
+    mockProcess.emit("close", 1, null);
+
+    await expect(stopPromise).rejects.toThrow(
+      "screencapture: Failed to save to final location",
+    );
+  });
+
+  it("should reject if screencapture fails to spawn", async () => {
+    const stopPromise = stopRecording();
+    const spawnError = new Error("unable to spawn screencapture");
+
+    mockProcess.emit("error", spawnError);
+
+    await expect(stopPromise).rejects.toBe(spawnError);
   });
 });

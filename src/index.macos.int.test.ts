@@ -9,12 +9,12 @@ describe("macOS recording integration", () => {
   it("creates a non-empty recording file", async () => {
     const directory = mkdtempSync(join(tmpdir(), "guidepup-record-macos-"));
     const filepath = join(directory, "recordings", "recording.mov");
-    let stopRecording: (() => void) | undefined;
+    let stopRecording: (() => Promise<void>) | undefined;
 
     try {
       stopRecording = macOSRecord(filepath);
       await delay(500);
-      stopRecording();
+      await stopRecording();
       stopRecording = undefined;
 
       await waitFor(() => {
@@ -24,7 +24,7 @@ describe("macOS recording integration", () => {
       });
     } finally {
       try {
-        stopRecording?.();
+        await stopRecording?.();
 
         rmSync(directory, {
           recursive: true,

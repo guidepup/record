@@ -20,14 +20,14 @@ import { spawn } from "child_process";
  *   // ... perform some commands.
  *
  *   // Stop the screen recording.
- *   stopRecording();
+ *   await stopRecording();
  * })();
  * ```
  *
  * @param {string} filepath The file path to save the screen recording to.
- * @returns {Function} A function to stop the screen recording.
+ * @returns {Function} An async function to stop and finalize the screen recording.
  */
-export function record(filepath: string): () => void {
+export function record(filepath: string): () => Promise<void> {
   mkdirSync(dirname(filepath), { recursive: true });
 
   try {
@@ -36,16 +36,73 @@ export function record(filepath: string): () => void {
     // file doesn't exist.
   }
 
-  const screencapture = spawn("/usr/sbin/screencapture", [
-    "-v",
-    "-C",
-    "-k",
-    "-T0",
-    "-g",
-    filepath,
-  ]);
+  const screencapture = spawn(
+    "/usr/sbin/screencapture",
+    ["-v", "-C", "-k", "-T0", "-g", filepath],
+    { stdio: ["ignore", "ignore", "pipe"] },
+  );
+
+  let stderr = "";
+
+  screencapture.stderr.setEncoding("utf8");
+
+  screencapture.stderr.on("data", (chunk: string) => {
+    stderr += chunk;
+  });
+
+  let spawnError: Error | undefined;
+
+  const captureResult = new Promise<
+    { error: Error } | { code: number | null; signal: NodeJS.Signals | null }
+  >((resolve) => {
+    screencapture.once("error", (error) => {
+      spawnError = error;
+      resolve({ error });
+    });
+
+    screencapture.once("close", (code, signal) => {
+      if (!spawnError) {
+        resolve({ code, signal });
+      }
+    });
+  });
+
+  let stopPromise: Promise<void> | undefined;
 
   return () => {
-    screencapture.stdin.write("q");
+    if (!stopPromise) {
+      const shouldSignal =
+        !spawnError &&
+        screencapture.exitCode === null &&
+        screencapture.signalCode === null;
+
+      if (shouldSignal) {
+        screencapture.kill("SIGINT");
+      }
+
+      stopPromise = captureResult.then((result) => {
+        if ("error" in result) {
+          throw result.error;
+        }
+
+        if (result.code === 0 || result.signal === "SIGINT") {
+          return;
+        }
+
+        const exitDetails = result.signal
+          ? `signal ${result.signal}`
+          : `exit code ${result.code}`;
+
+        const errorOutput = stderr.trim();
+
+        throw new Error(
+          `screencapture failed (${exitDetails})${
+            errorOutput ? `: ${errorOutput}` : ""
+          }`,
+        );
+      });
+    }
+
+    return stopPromise;
   };
 }

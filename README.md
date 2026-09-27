@@ -26,7 +26,7 @@ import { windowsRecord } from "@guidepup/record";
   // ... perform some commands.
 
   // Stop the screen recording.
-  stopRecording();
+  await stopRecording();
 })();
 ```
 
@@ -44,7 +44,7 @@ import { macOSRecord } from "@guidepup/record";
   // ... perform some commands.
 
   // Stop the screen recording.
-  stopRecording();
+  await stopRecording();
 })();
 ```
 

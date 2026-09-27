@@ -1,5 +1,6 @@
 import { ChildProcess, spawn } from "child_process";
 import { mkdirSync, unlinkSync } from "fs";
+import { EventEmitter } from "events";
 import { join } from "path";
 import { record } from "./record";
 
@@ -15,11 +16,23 @@ jest.mock("fs", () => ({
 const mockDirectory = "test-directory";
 const mockFilepath = join(mockDirectory, "test-filepath.ext");
 
-const mockProcess = {
-  stdin: {
-    write: jest.fn(),
-  },
+const createMockProcess = () => {
+  const stdin = Object.assign(new EventEmitter(), {
+    end: jest.fn(),
+  });
+  const stderr = Object.assign(new EventEmitter(), {
+    setEncoding: jest.fn(),
+  });
+
+  return Object.assign(new EventEmitter(), {
+    stdin,
+    stderr,
+    exitCode: null as number | null,
+    signalCode: null as NodeJS.Signals | null,
+  });
 };
+
+let mockProcess: ReturnType<typeof createMockProcess>;
 
 describe("record", () => {
   let stopRecording;
@@ -27,6 +40,7 @@ describe("record", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    mockProcess = createMockProcess();
     jest.mocked(spawn).mockReturnValue(mockProcess as unknown as ChildProcess);
 
     stopRecording = record(mockFilepath);
@@ -41,24 +55,58 @@ describe("record", () => {
   });
 
   it("should spawn an ffmpeg child process for recording", () => {
-    expect(spawn).toHaveBeenCalledWith("test-ffmpeg", [
-      "-f",
-      "gdigrab",
-      "-framerate",
-      "60",
-      "-i",
-      "desktop",
-      "-pix_fmt",
-      "yuv420p",
-      "-vcodec",
-      "mpeg4",
-      mockFilepath,
-    ]);
+    expect(spawn).toHaveBeenCalledWith(
+      "test-ffmpeg",
+      [
+        "-f",
+        "gdigrab",
+        "-framerate",
+        "60",
+        "-i",
+        "desktop",
+        "-pix_fmt",
+        "yuv420p",
+        "-vcodec",
+        "mpeg4",
+        mockFilepath,
+      ],
+      {
+        stdio: ["pipe", "ignore", "pipe"],
+      },
+    );
   });
 
-  it("should return a function to stop the ffmpeg process", () => {
-    stopRecording();
+  it("should send q and wait for the process to close", async () => {
+    const stopPromise = stopRecording();
+    const onStopped = jest.fn();
 
-    expect(mockProcess.stdin.write).toHaveBeenCalledWith("q");
+    stopPromise.then(onStopped);
+
+    expect(mockProcess.stdin.end).toHaveBeenCalledWith("q");
+    await Promise.resolve();
+    expect(onStopped).not.toHaveBeenCalled();
+
+    mockProcess.emit("close", 0, null);
+
+    await expect(stopPromise).resolves.toBeUndefined();
+    expect(onStopped).toHaveBeenCalled();
+  });
+
+  it("should include stderr when ffmpeg fails", async () => {
+    const stopPromise = stopRecording();
+
+    mockProcess.stderr.emit("data", "ffmpeg: capture failed");
+    mockProcess.emit("close", 1, null);
+
+    await expect(stopPromise).rejects.toThrow("ffmpeg: capture failed");
+  });
+
+  it("should reject if ffmpeg fails to spawn", async () => {
+    const stopPromise = stopRecording();
+    const spawnError = new Error("unable to spawn ffmpeg");
+
+    mockProcess.emit("error", spawnError);
+
+    await expect(stopPromise).rejects.toBe(spawnError);
   });
 });

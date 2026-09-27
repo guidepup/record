@@ -9,12 +9,12 @@ describe("Windows recording integration", () => {
   it("creates a non-empty recording file", async () => {
     const directory = mkdtempSync(join(tmpdir(), "guidepup-record-windows-"));
     const filepath = join(directory, "recordings", "recording.mp4");
-    let stopRecording: (() => void) | undefined;
+    let stopRecording: (() => Promise<void>) | undefined;
 
     try {
       stopRecording = windowsRecord(filepath);
       await delay(500);
-      stopRecording();
+      await stopRecording();
       stopRecording = undefined;
 
       await waitFor(() => {
@@ -24,7 +24,7 @@ describe("Windows recording integration", () => {
       });
     } finally {
       try {
-        stopRecording?.();
+        await stopRecording?.();
 
         rmSync(directory, {
           recursive: true,
