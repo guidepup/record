@@ -23,8 +23,18 @@ describe("macOS recording integration", () => {
         expect(statSync(filepath).size).toBeGreaterThan(0);
       });
     } finally {
-      stopRecording?.();
-      rmSync(directory, { recursive: true, force: true });
+      try {
+        stopRecording?.();
+
+        rmSync(directory, {
+          recursive: true,
+          force: true,
+          maxRetries: 10,
+          retryDelay: 100,
+        });
+      } catch {
+        // Swallow
+      }
     }
   }, 30000);
 });
