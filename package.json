@@ -8,7 +8,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/guidepup/record"
+    "url": "git+https://github.com/guidepup/record.git"
   },
   "bugs": {
     "url": "https://github.com/guidepup/record/issues"
