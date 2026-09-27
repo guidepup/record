@@ -30,6 +30,8 @@
     "test": "jest",
     "test:int:macos": "jest --config jest.int.config.ts --runTestsByPath src/index.macos.int.test.ts",
     "test:int:windows": "jest --config jest.int.config.ts --runTestsByPath src/index.windows.int.test.ts",
+    "example:macos": "ts-node --project tsconfig.examples.json examples/macos.ts",
+    "example:windows": "ts-node --project tsconfig.examples.json examples/windows.ts",
     "test:coverage": "yarn test --coverage",
     "prepublish": "yarn build"
   },

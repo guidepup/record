@@ -13,7 +13,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
@@ -27,11 +27,11 @@ jobs:
         os: [macos-15, macos-26, xcode-27]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-      - run: npx -y --min-release-age=0 @guidepup/setup@0.28.0 setup --ci
+      - run: npx -y --min-release-age=0 @guidepup/setup@0.29.0 setup --ci
       - run: yarn install --frozen-lockfile
       - run: yarn test:int:macos
 
@@ -42,9 +42,50 @@ jobs:
         os: [windows-2022, windows-2025]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
       - run: yarn install --frozen-lockfile
       - run: yarn test:int:windows
+
+  example-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26, xcode-27]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - run: npx -y --min-release-age=0 @guidepup/setup@0.29.0 setup --ci
+      - run: yarn install --frozen-lockfile
+      - run: yarn example:macos
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: example-recording-${{ matrix.os }}
+          path: recordings/macos-example.mov
+
+  example-windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - run: yarn install --frozen-lockfile
+      - run: yarn example:windows
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: example-recording-${{ matrix.os }}
+          path: recordings/windows-example.mp4

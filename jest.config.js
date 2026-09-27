@@ -6,7 +6,11 @@ module.exports = {
     "<rootDir>/src/index\\.(macos|windows)\\.int\\.test\\.ts$",
   ],
   collectCoverageFrom: ["**/*.ts"],
-  coveragePathIgnorePatterns: ["<rootDir>/src/index.ts", "\\.test\\.ts$"],
+  coveragePathIgnorePatterns: [
+    "<rootDir>/src/index.ts",
+    "\\.test\\.ts$",
+    "<rootDir>/examples/",
+  ],
   coverageThreshold: {
     global: {
       branches: 100,
