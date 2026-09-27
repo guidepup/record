@@ -1,0 +1,30 @@
+import { existsSync, mkdtempSync, rmSync, statSync } from "fs";
+import { delay } from "../test/delay";
+import { join } from "node:path";
+import { macOSRecord } from "./index";
+import { tmpdir } from "node:os";
+import { waitFor } from "../test/wait-for";
+
+describe("macOS recording integration", () => {
+  it("creates a non-empty recording file", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "guidepup-record-macos-"));
+    const filepath = join(directory, "recordings", "recording.mov");
+    let stopRecording: (() => void) | undefined;
+
+    try {
+      stopRecording = macOSRecord(filepath);
+      await delay(500);
+      stopRecording();
+      stopRecording = undefined;
+
+      await waitFor(() => {
+        expect(existsSync(filepath)).toBe(true);
+        expect(statSync(filepath).isFile()).toBe(true);
+        expect(statSync(filepath).size).toBeGreaterThan(0);
+      });
+    } finally {
+      stopRecording?.();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }, 30000);
+});

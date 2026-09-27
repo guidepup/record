@@ -5,3 +5,4 @@ lib
 node_modules
 .eslintrc.js
 jest.config.js
+jest.int.config.ts
