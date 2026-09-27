@@ -2,8 +2,8 @@ import { mkdirSync, unlinkSync } from "fs";
 import { dirname } from "path";
 import { spawn } from "child_process";
 
-// TODO: add better handling for when permissions for screen recording haven't
-// been provided so that the system permissions popup is avoided.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ffmpegPath = require("ffmpeg-static");
 
 /**
  * [API Reference](https://www.guidepup.dev/docs/api/class-macos-record)
@@ -36,17 +36,35 @@ export function record(filepath: string): () => Promise<void> {
     // file doesn't exist.
   }
 
-  const screencapture = spawn(
-    "/usr/sbin/screencapture",
-    ["-v", "-C", "-k", "-T0", "-g", filepath],
-    { stdio: ["ignore", "ignore", "pipe"] },
+  const ffmpeg = spawn(
+    ffmpegPath,
+    [
+      "-f",
+      "avfoundation",
+      "-framerate",
+      "60",
+      "-pixel_format",
+      "uyvy422",
+      "-capture_cursor",
+      "1",
+      "-capture_mouse_clicks",
+      "1",
+      "-i",
+      "Capture screen 0:default",
+      "-pix_fmt",
+      "yuv420p",
+      "-vcodec",
+      "mpeg4",
+      filepath,
+    ],
+    { stdio: ["pipe", "ignore", "pipe"] },
   );
 
   let stderr = "";
 
-  screencapture.stderr.setEncoding("utf8");
+  ffmpeg.stderr.setEncoding("utf8");
 
-  screencapture.stderr.on("data", (chunk: string) => {
+  ffmpeg.stderr.on("data", (chunk: string) => {
     stderr += chunk;
   });
 
@@ -55,12 +73,12 @@ export function record(filepath: string): () => Promise<void> {
   const captureResult = new Promise<
     { error: Error } | { code: number | null; signal: NodeJS.Signals | null }
   >((resolve) => {
-    screencapture.once("error", (error) => {
+    ffmpeg.once("error", (error) => {
       spawnError = error;
       resolve({ error });
     });
 
-    screencapture.once("close", (code, signal) => {
+    ffmpeg.once("close", (code, signal) => {
       if (!spawnError) {
         resolve({ code, signal });
       }
@@ -72,12 +90,10 @@ export function record(filepath: string): () => Promise<void> {
   return () => {
     if (!stopPromise) {
       const shouldSignal =
-        !spawnError &&
-        screencapture.exitCode === null &&
-        screencapture.signalCode === null;
+        !spawnError && ffmpeg.exitCode === null && ffmpeg.signalCode === null;
 
       if (shouldSignal) {
-        screencapture.kill("SIGINT");
+        ffmpeg.stdin.end("q");
       }
 
       stopPromise = captureResult.then((result) => {
@@ -96,7 +112,7 @@ export function record(filepath: string): () => Promise<void> {
         const errorOutput = stderr.trim();
 
         throw new Error(
-          `screencapture failed (${exitDetails})${
+          `ffmpeg recording failed (${exitDetails})${
             errorOutput ? `: ${errorOutput}` : ""
           }`,
         );

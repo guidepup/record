@@ -4,6 +4,7 @@ import { EventEmitter } from "events";
 import { join } from "path";
 import { record } from "./record";
 
+jest.mock("ffmpeg-static", () => "test-ffmpeg");
 jest.mock("child_process", () => ({
   spawn: jest.fn(),
 }));
@@ -16,11 +17,15 @@ const mockDirectory = "test-directory";
 const mockFilepath = join(mockDirectory, "test-filepath.ext");
 
 const createMockProcess = () => {
+  const stdin = Object.assign(new EventEmitter(), {
+    end: jest.fn(),
+  });
   const stderr = Object.assign(new EventEmitter(), {
     setEncoding: jest.fn(),
   });
 
   return Object.assign(new EventEmitter(), {
+    stdin,
     stderr,
     exitCode: null as number | null,
     signalCode: null as NodeJS.Signals | null,
@@ -50,23 +55,41 @@ describe("record", () => {
     expect(unlinkSync).toHaveBeenCalledWith(mockFilepath);
   });
 
-  it("should spawn a screencapture child process for recording", () => {
+  it("should spawn an ffmpeg child process for recording", () => {
     expect(spawn).toHaveBeenCalledWith(
-      "/usr/sbin/screencapture",
-      ["-v", "-C", "-k", "-T0", "-g", mockFilepath],
+      "test-ffmpeg",
+      [
+        "-f",
+        "avfoundation",
+        "-framerate",
+        "60",
+        "-pixel_format",
+        "uyvy422",
+        "-capture_cursor",
+        "1",
+        "-capture_mouse_clicks",
+        "1",
+        "-i",
+        "Capture screen 0:default",
+        "-pix_fmt",
+        "yuv420p",
+        "-vcodec",
+        "mpeg4",
+        mockFilepath,
+      ],
       {
-        stdio: ["ignore", "ignore", "pipe"],
+        stdio: ["pipe", "ignore", "pipe"],
       },
     );
   });
 
-  it("should send SIGINT and wait for the process to close", async () => {
+  it("should send q and wait for the process to close", async () => {
     const stopPromise = stopRecording();
     const onStopped = jest.fn();
 
     stopPromise.then(onStopped);
 
-    expect(mockProcess.kill).toHaveBeenCalledWith("SIGINT");
+    expect(mockProcess.stdin.end).toHaveBeenCalledWith("q");
     await Promise.resolve();
     expect(onStopped).not.toHaveBeenCalled();
 
@@ -81,52 +104,47 @@ describe("record", () => {
     const secondStop = stopRecording();
 
     expect(secondStop).toBe(firstStop);
-    expect(mockProcess.kill).toHaveBeenCalledTimes(1);
+    expect(mockProcess.stdin.end).toHaveBeenCalledTimes(1);
 
     mockProcess.emit("close", 0, null);
 
     await expect(firstStop).resolves.toBeUndefined();
   });
 
-  it("should not signal a process that has already exited", async () => {
+  it("should not write to stdin after ffmpeg has exited", async () => {
     mockProcess.exitCode = 0;
 
     const stopPromise = stopRecording();
 
-    expect(mockProcess.kill).not.toHaveBeenCalled();
+    expect(mockProcess.stdin.end).not.toHaveBeenCalled();
 
     mockProcess.emit("close", 0, null);
 
     await expect(stopPromise).resolves.toBeUndefined();
   });
 
-  it("should include stderr when screencapture fails to save the file", async () => {
+  it("should include stderr when ffmpeg fails", async () => {
     const stopPromise = stopRecording();
 
-    mockProcess.stderr.emit(
-      "data",
-      "screencapture: Failed to save to final location",
-    );
+    mockProcess.stderr.emit("data", "ffmpeg: capture failed");
     mockProcess.emit("close", 1, null);
 
-    await expect(stopPromise).rejects.toThrow(
-      "screencapture: Failed to save to final location",
-    );
+    await expect(stopPromise).rejects.toThrow("ffmpeg: capture failed");
   });
 
-  it("should report an unexpected signal when stderr is empty", async () => {
+  it("should report a signal when ffmpeg exits without stderr", async () => {
     const stopPromise = stopRecording();
 
     mockProcess.emit("close", null, "SIGTERM");
 
     await expect(stopPromise).rejects.toThrow(
-      "screencapture failed (signal SIGTERM)",
+      "ffmpeg recording failed (signal SIGTERM)",
     );
   });
 
-  it("should reject if screencapture fails to spawn", async () => {
+  it("should reject if ffmpeg fails to spawn", async () => {
     const stopPromise = stopRecording();
-    const spawnError = new Error("unable to spawn screencapture");
+    const spawnError = new Error("unable to spawn ffmpeg");
 
     mockProcess.emit("error", spawnError);
 
