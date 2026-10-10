@@ -31,7 +31,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-      - run: npx -y --min-release-age=0 @guidepup/setup@0.29.0 setup --ci
+      - run: npx -y --min-release-age=0 @guidepup/setup@0.29.2 setup --ci
       - run: yarn install --frozen-lockfile
       - run: yarn test:int:macos
 
@@ -75,7 +75,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-      - run: npx -y --min-release-age=0 @guidepup/setup@0.29.0 setup --ci
+      - run: npx -y --min-release-age=0 @guidepup/setup@0.29.2 setup --ci
       - run: yarn install --frozen-lockfile
       - run: yarn example:macos
       - uses: actions/upload-artifact@v4
