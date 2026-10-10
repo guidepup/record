@@ -3,7 +3,7 @@ module.exports = {
   testEnvironment: "node",
   roots: ["src"],
   testPathIgnorePatterns: [
-    "<rootDir>/src/index\\.(macos|windows)\\.int\\.test\\.ts$",
+    "<rootDir>/src/index\\.(linux|macos|windows)\\.int\\.test\\.ts$",
   ],
   collectCoverageFrom: ["**/*.ts"],
   coveragePathIgnorePatterns: [

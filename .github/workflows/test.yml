@@ -49,6 +49,21 @@ jobs:
       - run: yarn install --frozen-lockfile
       - run: yarn test:int:windows
 
+  test-linux-integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - run: sudo apt-get update && sudo apt-get install --yes xvfb xauth
+      - run: yarn install --frozen-lockfile
+      - run: xvfb-run --auto-servernum yarn test:int:linux
+
   example-macos:
     strategy:
       fail-fast: false
@@ -89,3 +104,24 @@ jobs:
         with:
           name: example-recording-${{ matrix.os }}
           path: recordings/windows-example.mp4
+
+  example-linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-26.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+      - run: sudo apt-get update && sudo apt-get install --yes xvfb xauth
+      - run: yarn install --frozen-lockfile
+      - run: xvfb-run --auto-servernum yarn example:linux
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: example-recording-${{ matrix.os }}
+          path: recordings/linux-example.mp4
