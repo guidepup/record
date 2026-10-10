@@ -1,9 +1,4 @@
-import { mkdirSync, unlinkSync } from "fs";
-import { dirname } from "path";
-import { spawn } from "child_process";
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const ffmpegPath = require("ffmpeg-static");
+import { record as recordWithCommand } from "../common/record";
 
 /**
  * [API Reference](https://www.guidepup.dev/docs/api/class-macos-record)
@@ -28,16 +23,8 @@ const ffmpegPath = require("ffmpeg-static");
  * @returns {Function} An async function to stop and finalize the screen recording.
  */
 export function record(filepath: string): () => Promise<void> {
-  mkdirSync(dirname(filepath), { recursive: true });
-
-  try {
-    unlinkSync(filepath);
-  } catch {
-    // file doesn't exist.
-  }
-
-  const ffmpeg = spawn(
-    ffmpegPath,
+  return recordWithCommand(
+    filepath,
     [
       "-f",
       "avfoundation",
@@ -57,68 +44,5 @@ export function record(filepath: string): () => Promise<void> {
       "mpeg4",
       filepath,
     ],
-    { stdio: ["pipe", "ignore", "pipe"] },
   );
-
-  let stderr = "";
-
-  ffmpeg.stderr.setEncoding("utf8");
-
-  ffmpeg.stderr.on("data", (chunk: string) => {
-    stderr += chunk;
-  });
-
-  let spawnError: Error | undefined;
-
-  const captureResult = new Promise<
-    { error: Error } | { code: number | null; signal: NodeJS.Signals | null }
-  >((resolve) => {
-    ffmpeg.once("error", (error) => {
-      spawnError = error;
-      resolve({ error });
-    });
-
-    ffmpeg.once("close", (code, signal) => {
-      if (!spawnError) {
-        resolve({ code, signal });
-      }
-    });
-  });
-
-  let stopPromise: Promise<void> | undefined;
-
-  return () => {
-    if (!stopPromise) {
-      const shouldSignal =
-        !spawnError && ffmpeg.exitCode === null && ffmpeg.signalCode === null;
-
-      if (shouldSignal) {
-        ffmpeg.stdin.end("q");
-      }
-
-      stopPromise = captureResult.then((result) => {
-        if ("error" in result) {
-          throw result.error;
-        }
-
-        if (result.code === 0 || result.signal === "SIGINT") {
-          return;
-        }
-
-        const exitDetails = result.signal
-          ? `signal ${result.signal}`
-          : `exit code ${result.code}`;
-
-        const errorOutput = stderr.trim();
-
-        throw new Error(
-          `ffmpeg recording failed (${exitDetails})${
-            errorOutput ? `: ${errorOutput}` : ""
-          }`,
-        );
-      });
-    }
-
-    return stopPromise;
-  };
 }
