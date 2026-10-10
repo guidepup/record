@@ -12,6 +12,23 @@ Install to your project:
 npm install @guidepup/record
 ```
 
+### Automatic platform selection
+
+Use `record` to select the recorder for the current operating system:
+
+```ts
+import { record } from "@guidepup/record";
+
+const stopRecording = record("./recordings/screenRecording.mp4");
+
+// ... perform some commands.
+
+await stopRecording();
+```
+
+On Linux, automatic selection uses the X11 recorder and requires the `DISPLAY`
+environment variable. Wayland-only sessions are not supported.
+
 ### Windows
 
 Start a screen recording on Windows:
