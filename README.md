@@ -48,6 +48,26 @@ import { macOSRecord } from "@guidepup/record";
 })();
 ```
 
+### Linux
+
+Start a screen recording on Linux using an X11 display. The `DISPLAY`
+environment variable must identify the display. Wayland-only sessions are not
+supported by this recorder.
+
+```ts
+import { linuxRecord } from "@guidepup/record";
+
+(async () => {
+  // Start the screen recording passing the location to save the recording.
+  const stopRecording = linuxRecord("./recordings/screenRecording.mp4");
+
+  // ... perform some commands.
+
+  // Stop the screen recording.
+  await stopRecording();
+})();
+```
+
 ## Resources
 
 - [Contributing](.github/CONTRIBUTING.md)
