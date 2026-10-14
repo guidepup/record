@@ -13,8 +13,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - run: yarn install --frozen-lockfile
@@ -27,11 +27,11 @@ jobs:
         os: [macos-15, macos-26, xcode-27]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-      - run: npx -y --min-release-age=0 @guidepup/setup@0.29.2 setup --ci
+      - run: npx -y --min-release-age=0 @guidepup/setup@0.29.3 setup --ci
       - run: yarn install --frozen-lockfile
       - run: yarn test:int:macos
 
@@ -42,8 +42,8 @@ jobs:
         os: [windows-2022, windows-2025]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - run: yarn install --frozen-lockfile
@@ -56,8 +56,8 @@ jobs:
         os: [ubuntu-24.04, ubuntu-26.04]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - run: sudo apt-get update && sudo apt-get install --yes xvfb xauth
@@ -71,14 +71,14 @@ jobs:
         os: [macos-15, macos-26, xcode-27]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
-      - run: npx -y --min-release-age=0 @guidepup/setup@0.29.2 setup --ci
+      - run: npx -y --min-release-age=0 @guidepup/setup@0.29.3 setup --ci
       - run: yarn install --frozen-lockfile
       - run: yarn example:macos
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         continue-on-error: true
         with:
@@ -92,13 +92,13 @@ jobs:
         os: [windows-2022, windows-2025]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - run: yarn install --frozen-lockfile
       - run: yarn example:windows
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         continue-on-error: true
         with:
@@ -112,14 +112,14 @@ jobs:
         os: [ubuntu-24.04, ubuntu-26.04]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - run: sudo apt-get update && sudo apt-get install --yes xvfb xauth
       - run: yarn install --frozen-lockfile
       - run: xvfb-run --auto-servernum yarn example:linux
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         continue-on-error: true
         with:
